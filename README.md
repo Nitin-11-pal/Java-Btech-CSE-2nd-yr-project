@@ -1,11 +1,149 @@
-<div align="center">
+# Online Real Estate Management System (Java Swing + MySQL JDBC)
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+A complete, beginner-readable desktop application built using **JDK 17+**, **Java Swing**, and **MySQL Connector/J (JDBC)** without external frameworks.
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## 1. Complete Step-by-Step Setup (Find MySQL, Connect, Compile, & Run)
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+### Step 1: Download & Open the Project Folder
+1. Download/export the project ZIP from AI Studio and extract it on your laptop.
+2. Open **PowerShell** (Windows) or **Terminal** (macOS/Linux) inside the extracted project root folder (where `schema.sql` and `db.properties` are located).
 
-</div>
+---
+
+### Step 2: Automatically Find Your Installed MySQL & Run `schema.sql`
+
+#### On Windows (PowerShell):
+Run this block in PowerShell — it automatically searches your laptop for `mysql.exe`, prints its exact path, and runs `schema.sql` to create `real_estate_db` and all 5 tables:
+```powershell
+$mysqlExe = Get-ChildItem -Path "C:\Program Files\MySQL", "C:\Program Files (x86)\MySQL", "C:\xampp\mysql\bin", "C:\wamp64\bin\mysql" -Filter "mysql.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+Write-Host "Found MySQL at: $mysqlExe"
+Get-Content .\schema.sql | & $mysqlExe -u root -p
+```
+*(When prompted `Enter password:`, type your MySQL root password and press Enter.)*
+
+> **Alternative (MySQL Workbench / GUI):** Open **MySQL Workbench** from your Start Menu, connect to your local MySQL instance, open `schema.sql` (or copy-paste its contents), and click the **⚡ Lightning Bolt** icon.
+
+#### On macOS / Linux (Terminal):
+```bash
+MYSQL_BIN=$(which mysql || find /usr/local/mysql/bin /opt/homebrew/bin -name "mysql" 2>/dev/null | head -n 1)
+echo "Found MySQL at: $MYSQL_BIN"
+"$MYSQL_BIN" -u root -p < schema.sql
+```
+
+---
+
+### Step 3: Add the MySQL JDBC Driver (`mysql-connector-j.jar`) into `lib/`
+
+#### On Windows (PowerShell):
+Run this block — it checks if you already have `mysql-connector-j*.jar` on your laptop and copies it to `lib\`, or downloads it automatically if not found:
+```powershell
+mkdir lib -ErrorAction SilentlyContinue
+$existingJar = Get-ChildItem -Path "C:\Program Files (x86)\MySQL", "C:\Program Files\MySQL", "$env:USERPROFILE\.m2" -Filter "mysql-connector*.jar" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+if ($existingJar) {
+    Copy-Item $existingJar -Destination "lib\mysql-connector-j.jar"
+    Write-Host "Copied existing MySQL Connector JAR from: $existingJar"
+} else {
+    Invoke-WebRequest -Uri "https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.4.0/mysql-connector-j-8.4.0.jar" -OutFile "lib\mysql-connector-j-8.4.0.jar"
+    Write-Host "Downloaded mysql-connector-j-8.4.0.jar into lib\"
+}
+```
+
+#### On macOS / Linux (Terminal):
+```bash
+mkdir -p lib
+curl -L "https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.4.0/mysql-connector-j-8.4.0.jar" -o lib/mysql-connector-j-8.4.0.jar
+```
+
+---
+
+### Step 4: Connect the Project to MySQL (`db.properties`)
+Open `db.properties` in the project root folder and replace `YOUR_PASSWORD_HERE` with your MySQL root password:
+```properties
+db.url=jdbc:mysql://localhost:3306/real_estate_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+db.user=root
+db.password=YOUR_PASSWORD_HERE
+```
+*(How it connects: `com.realestate.util.DBConnection` is a Singleton that reads `db.url`, `db.user`, and `db.password` from `db.properties` and opens JDBC connections via `DriverManager.getConnection(url, user, password)`.)*
+
+---
+
+### Step 5: Compile All Java Source Files
+
+#### On Windows (PowerShell):
+```powershell
+mkdir out -ErrorAction SilentlyContinue
+$sources = Get-ChildItem -Recurse -Filter *.java src | ForEach-Object { $_.FullName }
+javac -d out -cp "lib/*" $sources
+```
+
+#### On Windows (Command Prompt / `cmd.exe`):
+```cmd
+mkdir out
+javac -d out -cp "lib\*" src\com\realestate\exception\*.java src\com\realestate\model\*.java src\com\realestate\dao\*.java src\com\realestate\util\*.java src\com\realestate\worker\*.java src\com\realestate\service\*.java src\com\realestate\ui\*.java
+```
+
+#### On macOS / Linux (Terminal):
+```bash
+mkdir -p out
+javac -d out -cp "lib/*" $(find src -name "*.java")
+```
+
+---
+
+### Step 6: Run the Application (Auto-Seeds Database + Opens Swing Window)
+
+#### On Windows (PowerShell or CMD):
+```powershell
+java -cp "out;lib/*" com.realestate.ui.RealEstateApp
+```
+*(Optional standalone seeder command: `java -cp "out;lib/*" com.realestate.util.SeedData`)*
+
+#### On macOS / Linux (Terminal):
+```bash
+java -cp "out:lib/*" com.realestate.ui.RealEstateApp
+```
+*(Optional standalone seeder command: `java -cp "out:lib/*" com.realestate.util.SeedData`)*
+
+---
+
+## 2. Demo Credentials
+
+All seeded accounts use **`PBKDF2WithHmacSHA256`** (120,000 iterations + 16-byte random cryptographic salt) generated by `PasswordUtil`:
+
+| Role               | Email                    | Password      | Capabilities                                                                 |
+| :----------------- | :----------------------- | :------------ | :--------------------------------------------------------------------------- |
+| **ADMIN**          | `admin@realestate.com`   | `Admin@123`   | Deactivate/reactivate users, approve/reject `PENDING` properties, view audit log & analytics |
+| **PROPERTY_MANAGER** | `manager@realestate.com` | `Manager@123` | Add/edit/delete own properties, approve/reject leases (atomic transaction), view 5% commissions |
+| **TENANT**         | `tenant@realestate.com`  | `Tenant@123`  | Search/filter/sort `APPROVED` properties, apply for leases, track own applications |
+
+---
+
+## 3. Rubric-to-File Mapping Table (33 Marks)
+
+| Rubric Category & Requirement | Marks | File Path(s) & Method(s) |
+| :--- | :---: | :--- |
+| **1. OOP (10 Marks)** | **10** | |
+| • `abstract class User` with encapsulated fields & abstract `displayRoleDashboard()` / `getPermissions()` | | `src/com/realestate/model/User.java` |
+| • `Admin`, `PropertyManager`, `Tenant` extend `User` + runtime polymorphism on `User` reference | | `src/com/realestate/model/Admin.java`, `PropertyManager.java`, `Tenant.java`, `src/com/realestate/ui/MainFrame.java` (`onLoginSuccess`) |
+| • `interface Reviewable { void approve(); void reject(String reason); }` implemented by `Property` | | `src/com/realestate/model/Reviewable.java`, `src/com/realestate/model/Property.java`, `src/com/realestate/service/RealEstateService.java` (`approveProperty`, `rejectProperty`) |
+| • Encapsulation (`private` fields, getters/setters), constructors, method overriding | | All classes in `src/com/realestate/model/*` |
+| • Custom checked exceptions extending `Exception` + `try/catch/finally` + `JOptionPane` error dialogs | | `src/com/realestate/exception/InvalidUserDataException.java`, `InvalidPropertyDataException.java`, `InvalidLeaseDataException.java`, `ResourceNotFoundException.java`, `UnauthorizedActionException.java`, `AuthenticationFailedException.java`, `src/com/realestate/ui/*` |
+| **2. Collections & Generics (6 Marks)** | **6** | |
+| • `HashMap<Integer, User>` in-memory user cache for $O(1)$ lookup (loaded at startup, updated on changes, guarded by `ReentrantReadWriteLock`) | | `src/com/realestate/service/AuthService.java` (`userCache`, `refreshCacheFromDatabase`, `getCachedUserById`) |
+| • `ArrayList<Property>` for listings + filter by city, max rent, min bedrooms, `status=APPROVED` | | `src/com/realestate/dao/PropertyDAO.java`, `src/com/realestate/service/RealEstateService.java` (`searchApprovedProperties`) |
+| • Generic interface `DAO<T>` and generic wrapper class `Result<T>` | | `src/com/realestate/dao/DAO.java`, `src/com/realestate/util/Result.java` |
+| • `List`, `Map`, `Set<String>` (distinct approved cities), and `Comparator` / `Collections.sort` (sort by monthly rent) | | `src/com/realestate/service/RealEstateService.java` (`getApprovedCities`, `searchApprovedProperties`), `src/com/realestate/util/AnalyticsTracker.java` (`getSnapshot`) |
+| **3. Multithreading & Synchronization (4 Marks)** | **4** | |
+| • `AuditWorker implements Runnable` daemon thread consuming `BlockingQueue<AuditLog>` + shutdown hook draining remaining items | | `src/com/realestate/worker/AuditWorker.java` (`startDaemon`, `enqueue`, `run`, `shutdown`, `drainRemaining`) |
+| • `ReentrantLock` guarding shared analytics counters (`AnalyticsTracker`) and `synchronized` / `ReentrantReadWriteLock` in `AuthService` | | `src/com/realestate/util/AnalyticsTracker.java`, `src/com/realestate/service/AuthService.java` |
+| • `SwingWorker` for background database calls from Swing UI so the EDT never freezes | | `src/com/realestate/ui/LoginPanel.java`, `RegisterPanel.java`, `AdminDashboard.java`, `ManagerDashboard.java`, `TenantDashboard.java` |
+| **4. Model Classes & DB Operation Classes (7 Marks)** | **7** | |
+| • Models: `User`, `Admin`, `PropertyManager`, `Tenant`, `Property`, `LeaseApplication`, `Commission`, `AuditLog` | | `src/com/realestate/model/*` |
+| • DAOs implementing `DAO<T>`: `UserDAO`, `PropertyDAO`, `LeaseApplicationDAO`, `CommissionDAO`, `AuditLogDAO` (with `Connection` overloads) | | `src/com/realestate/dao/*` |
+| • Singleton `DBConnection` reading URL/user/password from `db.properties` via a single constants block | | `src/com/realestate/util/DBConnection.java`, `db.properties` |
+| **5. JDBC Connectivity (3 Marks)** | **3** | |
+| • Full CRUD with `PreparedStatement` only (zero SQL string concatenation) and `try-with-resources` | | `src/com/realestate/dao/UserDAO.java`, `PropertyDAO.java`, `LeaseApplicationDAO.java`, `CommissionDAO.java`, `AuditLogDAO.java` |
+| **6. Transaction Management (3 Marks)** | **3** | |
+| • Atomic `RealEstateService.approveLease(User actor, int applicationId)`: `setAutoCommit(false)` -> lock `LeaseApplication` (`SELECT ... FOR UPDATE`) -> lock `Property` (`SELECT ... FOR UPDATE`) -> verify `PENDING` & `APPROVED` -> mark application `APPROVED` -> mark property `RENTED` -> reject competing `PENDING` applications -> insert 5% `Commission` -> `commit()` / `rollback()` -> restore `autoCommit(true)` in `finally` -> post-commit `AuditWorker` queue push | | `src/com/realestate/service/RealEstateService.java` (`approveLease`), `src/com/realestate/dao/LeaseApplicationDAO.java` (`findByIdForUpdate`, `rejectOtherPendingByProperty`), `src/com/realestate/dao/PropertyDAO.java` (`findByIdForUpdate`) |

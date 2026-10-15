@@ -1,0 +1,6 @@
+{
+  "name": "Online Real Estate Management System (Java Swing + JDBC)",
+  "description": "Complete JDK 17+ Java Swing and MySQL (JDBC) desktop application satisfying all 33 university rubric marks across OOP, Collections & Generics, Concurrency, DAO/Model layers, and ACID Transactions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
